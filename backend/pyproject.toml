@@ -10,3 +10,7 @@ addopts = [
     "--cov-fail-under=75",
     "-v"
 ]
+
+[tool.flake8]
+max-line-length = 127
+extend-ignore = ["E203"]
