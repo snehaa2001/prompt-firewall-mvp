@@ -1,0 +1,93 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches: [ main ]
+    paths:  
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          pip install -r requirements.txt
+          python -m spacy download en_core_web_sm
+
+      - name: Run pytest
+        working-directory: backend
+        run: pytest --cov=app --cov-report=xml --cov-fail-under=70
+        env:
+          OPENAI_API_KEY: test-key
+          GOOGLE_CLOUD_PROJECT: test-project
+          JWT_SECRET_KEY: test-secret
+
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install linting tools
+        run: pip install flake8 black mypy bandit
+
+      - name: Run flake8
+        working-directory: backend
+        run: flake8 app/ --count --max-line-length=127 --statistics
+
+      - name: Run black
+        working-directory: backend
+        run: black --check app/
+
+      - name: Run mypy
+        working-directory: backend
+        run: mypy app/ --ignore-missing-imports
+
+      - name: Run bandit
+        working-directory: backend
+        run: bandit -r app/ -ll
+
+  deploy:
+    needs: [test, lint]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy
+        working-directory: backend
+        env:
+          JWT_SECRET_KEY: ${{ secrets.BACKEND_JWT_SECRET_KEY }}
+          ALLOWED_ORIGINS: ${{ secrets.BACKEND_ALLOWED_ORIGINS }}
+          OPENAI_API_KEY: ${{ secrets.BACKEND_OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.BACKEND_ANTHROPIC_API_KEY }}
+        run: |
+          gcloud builds submit --config cloudbuild.yaml \
+            --substitutions=COMMIT_SHA="${{ github.sha }}",_JWT_SECRET_KEY="${JWT_SECRET_KEY}",_ALLOWED_ORIGINS="${ALLOWED_ORIGINS}",_OPENAI_API_KEY="${OPENAI_API_KEY}",_ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY}"

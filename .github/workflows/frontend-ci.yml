@@ -1,0 +1,67 @@
+name: Frontend CI/CD
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'frontend/**'
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Type check
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+  deploy:
+    needs: [test]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy
+        working-directory: frontend
+        env:
+          API_URL: ${{ secrets.FRONTEND_API_URL }}
+          FIREBASE_API_KEY: ${{ secrets.FRONTEND_FIREBASE_API_KEY }}
+          FIREBASE_AUTH_DOMAIN: ${{ secrets.FRONTEND_FIREBASE_AUTH_DOMAIN }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FRONTEND_FIREBASE_PROJECT_ID }}
+          FIREBASE_STORAGE_BUCKET: ${{ secrets.FRONTEND_FIREBASE_STORAGE_BUCKET }}
+          FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FRONTEND_FIREBASE_MESSAGING_SENDER_ID }}
+          FIREBASE_APP_ID: ${{ secrets.FRONTEND_FIREBASE_APP_ID }}
+          FIREBASE_MEASUREMENT_ID: ${{ secrets.FRONTEND_FIREBASE_MEASUREMENT_ID }}
+        run: |
+          gcloud builds submit --config cloudbuild.yaml \
+            --substitutions=COMMIT_SHA="${{ github.sha }}",_API_URL="${API_URL}",_FIREBASE_API_KEY="${FIREBASE_API_KEY}",_FIREBASE_AUTH_DOMAIN="${FIREBASE_AUTH_DOMAIN}",_FIREBASE_PROJECT_ID="${FIREBASE_PROJECT_ID}",_FIREBASE_STORAGE_BUCKET="${FIREBASE_STORAGE_BUCKET}",_FIREBASE_MESSAGING_SENDER_ID="${FIREBASE_MESSAGING_SENDER_ID}",_FIREBASE_APP_ID="${FIREBASE_APP_ID}",_FIREBASE_MEASUREMENT_ID="${FIREBASE_MEASUREMENT_ID}"
