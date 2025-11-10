@@ -215,7 +215,11 @@ class TestGetUserHistory:
             }
             mock_docs.append(doc)
 
-        anomaly_detector.db.collection.return_value.where.return_value.order_by.return_value.limit.return_value.stream.return_value = mock_docs
+        mock_query = MagicMock()
+        mock_query.stream.return_value = mock_docs
+        mock_query.limit.return_value = mock_query
+        mock_query.where.return_value = mock_query
+        anomaly_detector.db.collection.return_value = mock_query
 
         history = await anomaly_detector._get_user_history("user-123", "tenant-1", days=7)
 

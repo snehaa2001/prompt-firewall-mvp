@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { auth, getCurrentToken, logout } from "@/lib/firebase-auth";
+import { auth, logout } from "@/lib/firebase-auth";
 import { onAuthStateChanged } from "firebase/auth";
 import Link from "next/link";
 import { Shield, LayoutDashboard, FileText, Settings, LogOut } from "lucide-react";
@@ -28,6 +28,7 @@ export default function AdminLayout({
     const isSignupPage = pathname === '/admin/signup';
 
     if (isLoginPage || isSignupPage) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false);
       setUser(null);
       return;

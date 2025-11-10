@@ -1,9 +1,10 @@
 import asyncio
-from typing import Dict
+from typing import Optional
 from app.core.pii_detector import PIIDetector
 from app.core.injection_detector import InjectionDetector
 from app.core.custom_detector import CustomDetector
 from app.core.policy_engine import PolicyEngine, PolicyDecision
+
 
 class PromptFirewall:
     def __init__(self):
@@ -12,17 +13,12 @@ class PromptFirewall:
         self.custom_detector = CustomDetector()
         self.policy_engine = PolicyEngine()
 
-    async def analyze_request(
-        self,
-        prompt: str,
-        response: str = "",
-        policies: list = None
-    ) -> PolicyDecision:
+    async def analyze_request(self, prompt: str, response: str = "", policies: Optional[list] = None) -> PolicyDecision:
 
         if policies is None:
             policies = []
 
-        custom_policies = [p for p in policies if p.get('type') == 'custom']
+        custom_policies = [p for p in policies if p.get("type") == "custom"]
 
         pii_task = asyncio.create_task(self.pii_detector.detect(prompt))
         injection_task = asyncio.create_task(self.injection_detector.detect(prompt))
@@ -40,7 +36,7 @@ class PromptFirewall:
             pii_risks=pii_risks,
             injection_risks=injection_risks,
             custom_risks=custom_risks,
-            policies=policies
+            policies=policies,
         )
 
         return decision

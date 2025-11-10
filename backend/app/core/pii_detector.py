@@ -3,6 +3,7 @@ from presidio_analyzer import AnalyzerEngine
 from presidio_analyzer.nlp_engine import NlpEngineProvider
 from presidio_anonymizer import AnonymizerEngine
 
+
 class PIIDetector:
     def __init__(self):
         nlp_configuration = {
@@ -19,33 +20,35 @@ class PIIDetector:
 
         presidio_results = self.analyzer.analyze(
             text=text,
-            language='en',
+            language="en",
             entities=[
-                "EMAIL_ADDRESS",     
-                "PHONE_NUMBER",      
-                "US_SSN",           
-                "CREDIT_CARD",      
-                "IP_ADDRESS",       
-                "MEDICAL_LICENSE",  
-                "US_PASSPORT",      
+                "EMAIL_ADDRESS",
+                "PHONE_NUMBER",
+                "US_SSN",
+                "CREDIT_CARD",
+                "IP_ADDRESS",
+                "MEDICAL_LICENSE",
+                "US_PASSPORT",
                 "US_DRIVER_LICENSE",
-                "US_BANK_NUMBER",   
-                "IBAN_CODE"         
+                "US_BANK_NUMBER",
+                "IBAN_CODE",
             ],
-            score_threshold=0.75  
+            score_threshold=0.75,
         )
 
         for result in presidio_results:
-            original_text = text[result.start:result.end]
-            risks.append({
-                "type": "PII",
-                "subtype": result.entity_type.lower(),
-                "match": self._mask_presidio(original_text, result.entity_type),
-                "original_match": original_text,
-                "severity": self._get_severity(result.entity_type.lower()),
-                "position": result.start,
-                "confidence": result.score
-            })
+            original_text = text[result.start : result.end]
+            risks.append(
+                {
+                    "type": "PII",
+                    "subtype": result.entity_type.lower(),
+                    "match": self._mask_presidio(original_text, result.entity_type),
+                    "original_match": original_text,
+                    "severity": self._get_severity(result.entity_type.lower()),
+                    "position": result.start,
+                    "confidence": result.score,
+                }
+            )
 
         return risks
 
@@ -75,10 +78,9 @@ class PIIDetector:
             "us_bank_number": "critical",
             "iban_code": "critical",
             "medical_license": "critical",
-
             # Medium - Contact information
             "email_address": "medium",
             "phone_number": "medium",
-            "ip_address": "medium"
+            "ip_address": "medium",
         }
         return severity_map.get(pii_type, "medium")

@@ -2,6 +2,7 @@ from openai import AsyncOpenAI
 from anthropic import AsyncAnthropic
 from app.core.secrets import get_openai_api_key, get_anthropic_api_key
 
+
 class LLMService:
     def __init__(self):
         openai_key = get_openai_api_key()
@@ -17,18 +18,16 @@ class LLMService:
                     model=model,
                     messages=[
                         {"role": "system", "content": "You are a helpful assistant."},
-                        {"role": "user", "content": prompt}
+                        {"role": "user", "content": prompt},
                     ],
                     max_tokens=500,
-                    temperature=0.7
+                    temperature=0.7,
                 )
                 return response.choices[0].message.content
 
             elif model.startswith("claude") and self.anthropic_client:
                 response = await self.anthropic_client.messages.create(
-                    model=model,
-                    max_tokens=500,
-                    messages=[{"role": "user", "content": prompt}]
+                    model=model, max_tokens=500, messages=[{"role": "user", "content": prompt}]
                 )
                 return response.content[0].text
 

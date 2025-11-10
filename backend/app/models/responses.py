@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import List, Dict, Literal
 
+
 class QueryResponse(BaseModel):
     decision: Literal["allow", "block", "redact", "warn"]
     originalPrompt: str

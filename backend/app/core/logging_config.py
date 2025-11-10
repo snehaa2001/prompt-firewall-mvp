@@ -2,18 +2,20 @@ import logging
 import sys
 import uuid
 from contextvars import ContextVar
-from typing import Any
+from typing import Any, Optional
 
 import structlog
 from structlog.typing import EventDict
 
 request_id_var: ContextVar[str] = ContextVar("request_id", default="")
 
+
 def add_request_id(logger: Any, method_name: str, event_dict: EventDict) -> EventDict:
     request_id = request_id_var.get()
     if request_id:
         event_dict["request_id"] = request_id
     return event_dict
+
 
 def configure_logging():
     structlog.configure(
@@ -44,15 +46,18 @@ def configure_logging():
     root_logger.addHandler(handler)
     root_logger.setLevel(logging.INFO)
 
+
 configure_logging()
 
 logger = structlog.get_logger()
 
-def set_request_id(request_id: str = None):
+
+def set_request_id(request_id: Optional[str] = None):
     if request_id is None:
         request_id = str(uuid.uuid4())
     request_id_var.set(request_id)
     return request_id
+
 
 def get_request_id() -> str:
     return request_id_var.get()

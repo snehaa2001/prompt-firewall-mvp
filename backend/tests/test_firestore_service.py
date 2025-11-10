@@ -255,16 +255,19 @@ class TestPolicyOperations:
     @pytest.mark.asyncio
     async def test_rollback_policy(self, firestore_service):
         history = [
-            {"version": 1, "data": {"name": "V1"}, "updatedAt": datetime.utcnow()},
-            {"version": 2, "data": {"name": "V2"}, "updatedAt": datetime.utcnow()}
+            {"version": 1, "data": {"name": "V1", "updatedAt": datetime.utcnow()}, "updatedAt": datetime.utcnow()},
+            {"version": 2, "data": {"name": "V2", "updatedAt": datetime.utcnow()}, "updatedAt": datetime.utcnow()}
         ]
 
         mock_doc = MagicMock()
         mock_doc.to_dict.return_value = {
             "name": "Current",
             "version": 3,
+            "updatedAt": datetime.utcnow(),
+            "updatedBy": "admin",
             "history": history
         }
+        mock_doc.exists = True
         mock_doc_ref = MagicMock()
         mock_doc_ref.get.return_value = mock_doc
         mock_collection = MagicMock()
