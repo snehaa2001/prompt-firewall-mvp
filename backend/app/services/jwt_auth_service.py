@@ -1,6 +1,7 @@
 """
 JWT Authentication Service - Simple self-contained auth for MVP demo/testing
 """
+
 from datetime import datetime, timedelta
 from typing import Optional, Dict
 import os
@@ -25,11 +26,7 @@ def authenticate_user(email: str, password: str) -> Optional[Dict[str, str]]:
     In production, use proper password hashing with bcrypt or argon2.
     """
     if email == ADMIN_EMAIL and password == ADMIN_PASSWORD:
-        return {
-            "email": email,
-            "role": "admin",
-            "user_id": "admin-001"
-        }
+        return {"email": email, "role": "admin", "user_id": "admin-001"}
     return None
 
 
@@ -65,10 +62,6 @@ def verify_token(token: str) -> Optional[Dict[str, str]]:
         email: str = payload.get("email")
         if email is None:
             return None
-        return {
-            "email": email,
-            "role": payload.get("role", "user"),
-            "user_id": payload.get("user_id", "unknown")
-        }
+        return {"email": email, "role": payload.get("role", "user"), "user_id": payload.get("user_id", "unknown")}
     except JWTError:
         return None

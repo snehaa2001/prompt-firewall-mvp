@@ -1,6 +1,7 @@
 from typing import Optional
 from app.services.jwt_auth_service import verify_token as jwt_verify_token
 
+
 async def verify_token(authorization: Optional[str]) -> dict:
     """
     Verify JWT token from Authorization header

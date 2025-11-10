@@ -36,7 +36,7 @@ export default function LogsPage() {
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const limit = 50;
 
-  const loadLogs = async (isInitialLoad = false) => {
+  const loadLogs = useCallback(async (isInitialLoad = false) => {
     if (isLoadingMore) return;
 
     if (isInitialLoad) {
@@ -71,13 +71,16 @@ export default function LogsPage() {
       setLoading(false);
       setIsLoadingMore(false);
     }
-  };
+  }, [filterType, limit, offset, isLoadingMore]);
 
   useEffect(() => {
     loadLogs(true);
-  }, [filterType]);
+  }, [loadLogs]);
 
   useEffect(() => {
+    const currentRef = loadMoreRef.current;
+    if (!currentRef) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasMore && !isLoadingMore && !loading) {
@@ -87,16 +90,12 @@ export default function LogsPage() {
       { threshold: 1.0 }
     );
 
-    if (loadMoreRef.current) {
-      observer.observe(loadMoreRef.current);
-    }
+    observer.observe(currentRef);
 
     return () => {
-      if (loadMoreRef.current) {
-        observer.unobserve(loadMoreRef.current);
-      }
+      observer.unobserve(currentRef);
     };
-  }, [hasMore, isLoadingMore, loading, offset]);
+  }, [hasMore, isLoadingMore, loading, loadLogs]);
 
   const getDecisionColor = (decision: string) => {
     const colors: Record<string, string> = {

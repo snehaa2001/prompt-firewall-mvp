@@ -4,6 +4,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import os
 
 os.environ['GOOGLE_CLOUD_PROJECT'] = 'test-project'
+os.environ['ADMIN_CREATION_SECRET'] = 'change-this-secret-in-production'
+
+@pytest.fixture(autouse=True)
+def mock_error_reporting():
+    with patch('google.cloud.error_reporting.Client') as mock_client_class:
+        mock_client = MagicMock()
+        mock_client.report_exception = MagicMock()
+        mock_client_class.return_value = mock_client
+        yield mock_client
 
 @pytest.fixture(autouse=True)
 def mock_firebase_admin():
@@ -25,6 +34,10 @@ def mock_firestore():
         mock_collection = MagicMock()
         mock_collection.stream.return_value = []
         mock_collection.document.return_value.get.return_value.to_dict.return_value = {}
+        # Setup add() to return (None, doc_ref) tuple
+        mock_doc_ref = MagicMock()
+        mock_doc_ref.id = "test-doc-id"
+        mock_collection.add.return_value = (None, mock_doc_ref)
         mock_client.collection.return_value = mock_collection
         mock.return_value = mock_client
         yield mock

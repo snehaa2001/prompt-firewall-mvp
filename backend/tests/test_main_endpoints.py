@@ -220,7 +220,7 @@ class TestAdminEndpoints:
         assert response.status_code == 403
 
     def test_create_admin_valid_secret(self, test_client):
-        with patch('app.services.firebase_auth_service.create_admin_user', new_callable=AsyncMock) as mock_create:
+        with patch('app.main.create_admin_user', new_callable=AsyncMock) as mock_create:
             mock_create.return_value = "user-123"
 
             response = test_client.post(
