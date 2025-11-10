@@ -34,6 +34,7 @@ jobs:
         working-directory: backend
         run: pytest --cov=app --cov-report=xml --cov-fail-under=70
         env:
+          PYTHONPATH: .
           OPENAI_API_KEY: test-key
           GOOGLE_CLOUD_PROJECT: test-project
           JWT_SECRET_KEY: test-secret
