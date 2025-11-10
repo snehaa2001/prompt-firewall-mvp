@@ -13,7 +13,6 @@ from app.models.requests import QueryRequest, PolicyRequest
 from app.models.responses import QueryResponse
 from pydantic import BaseModel
 from app.core.logging_config import logger, set_request_id
-from firebase_admin import auth as firebase_auth
 
 load_dotenv()
 
@@ -21,12 +20,17 @@ error_client = error_reporting.Client()
 
 app = FastAPI(title="Prompt Firewall API", version="1.0.0", docs_url="/docs", redoc_url="/redoc")
 
-allowed_origins = os.getenv(
-    "ALLOWED_ORIGINS", "http://localhost:3000,https://prompt-firewall-frontend-390735445343.us-central1.run.app"
-).split(",")
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
+allowed_origins_list = allowed_origins_env.split(",") if allowed_origins_env else []
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=[
+        "http://localhost:3000",
+        "https://prompt-firewall-frontend-390735445343.us-central1.run.app",
+        *allowed_origins_list,
+    ],
+    allow_origin_regex=r"https://prompt-firewall-frontend.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -194,7 +198,7 @@ async def create_policy(policy: PolicyRequest, user: dict = Depends(require_admi
 
 @app.put("/v1/policy/{policy_id}")
 async def update_policy(policy_id: str, policy: PolicyRequest, user: dict = Depends(require_admin)):
-    await db_service.update_policy(policy_id, policy.model_dump())
+    await db_service.update_policy(policy_id, policy.model_dump(), updated_by=user.get("email", "unknown"))
     return {"status": "updated"}
 
 
@@ -202,6 +206,28 @@ async def update_policy(policy_id: str, policy: PolicyRequest, user: dict = Depe
 async def delete_policy(policy_id: str, user: dict = Depends(require_admin)):
     await db_service.delete_policy(policy_id)
     return {"status": "deleted"}
+
+
+@app.get("/v1/policy/{policy_id}/history")
+async def get_policy_history(policy_id: str, user: dict = Depends(require_admin)):
+    try:
+        history = await db_service.get_policy_history(policy_id)
+        return {"history": history}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+class RollbackRequest(BaseModel):
+    version: int
+
+
+@app.post("/v1/policy/{policy_id}/rollback")
+async def rollback_policy(policy_id: str, request: RollbackRequest, user: dict = Depends(require_admin)):
+    try:
+        await db_service.rollback_policy(policy_id, request.version)
+        return {"status": "rolled_back", "version": request.version}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @app.get("/v1/logs")
@@ -214,6 +240,12 @@ async def get_logs(limit: int = 50, offset: int = 0, filterType: str = "all", us
 async def cleanup_logs(retention_days: int = 90, user: dict = Depends(require_admin)):
     count = await db_service.cleanup_old_logs(retention_days)
     return {"deleted_count": count, "retention_days": retention_days}
+
+
+@app.get("/v1/tenants")
+async def get_tenants(user: dict = Depends(require_admin)):
+    tenants = await db_service.get_all_tenants()
+    return {"tenants": tenants}
 
 
 @app.get("/health")

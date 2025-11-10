@@ -15,11 +15,17 @@ let app: FirebaseApp | undefined;
 let auth: Auth | undefined;
 let db: Firestore | undefined;
 
-if (typeof window !== "undefined" && firebaseConfig.apiKey) {
+if (typeof window !== "undefined") {
   try {
-    app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-    auth = getAuth(app);
-    db = getFirestore(app);
+    const hasConfig = firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId;
+    
+    if (!hasConfig) {
+      console.warn("Firebase config is missing. Check NEXT_PUBLIC_FIREBASE_* environment variables.");
+    } else {
+      app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+      auth = getAuth(app);
+      db = getFirestore(app);
+    }
   } catch (error) {
     console.error("Firebase initialization error:", error);
   }

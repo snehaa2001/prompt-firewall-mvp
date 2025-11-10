@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { apiClient } from "@/lib/api-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -32,24 +32,26 @@ export default function LogsPage() {
   const [filterType, setFilterType] = useState("all");
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [offset, setOffset] = useState(0);
+  const isLoadingMoreRef = useRef(false);
+  const offsetRef = useRef(0);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const limit = 50;
 
   const loadLogs = useCallback(async (isInitialLoad = false) => {
-    if (isLoadingMore) return;
+    if (isLoadingMoreRef.current) return;
 
     if (isInitialLoad) {
       setLoading(true);
-      setOffset(0);
+      offsetRef.current = 0;
     } else {
       setIsLoadingMore(true);
+      isLoadingMoreRef.current = true;
     }
 
     setError("");
 
     try {
-      const currentOffset = isInitialLoad ? 0 : offset;
+      const currentOffset = isInitialLoad ? 0 : offsetRef.current;
       const data = await apiClient.getLogs({
         limit,
         offset: currentOffset,
@@ -58,10 +60,11 @@ export default function LogsPage() {
 
       if (isInitialLoad) {
         setLogs(data.logs);
-        setOffset(limit);
+        offsetRef.current = limit;
       } else {
         setLogs(prev => [...prev, ...data.logs]);
-        setOffset(prev => prev + limit);
+        const newOffset = offsetRef.current + limit;
+        offsetRef.current = newOffset;
       }
 
       setHasMore(data.hasMore);
@@ -70,16 +73,18 @@ export default function LogsPage() {
     } finally {
       setLoading(false);
       setIsLoadingMore(false);
+      isLoadingMoreRef.current = false;
     }
-  }, [filterType, limit, offset, isLoadingMore]);
+  }, [filterType]);
 
   useEffect(() => {
+    offsetRef.current = 0;
     loadLogs(true);
-  }, [loadLogs]);
+  }, [filterType, loadLogs]);
 
   useEffect(() => {
     const currentRef = loadMoreRef.current;
-    if (!currentRef) return;
+    if (!currentRef || loading) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
