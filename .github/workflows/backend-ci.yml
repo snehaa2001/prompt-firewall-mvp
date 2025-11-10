@@ -58,7 +58,7 @@ jobs:
 
       - name: Run black
         working-directory: backend
-        run: black --check app/
+        run: black --check app/ --line-length=127
 
       - name: Run mypy
         working-directory: backend
