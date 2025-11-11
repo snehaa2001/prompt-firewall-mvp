@@ -26,16 +26,18 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserWithClaims | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!!auth);
 
   useEffect(() => {
+    if (!auth) {
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          // Get the ID token result which contains custom claims
           const idTokenResult = await firebaseUser.getIdTokenResult();
 
-          // Extract custom claims
           const role = (idTokenResult.claims.role as string) || "user";
           const tenantId = (idTokenResult.claims.tenantId as string) || "default";
 
