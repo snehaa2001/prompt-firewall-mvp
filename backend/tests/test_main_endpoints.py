@@ -128,7 +128,9 @@ class TestPolicyEndpoints:
         assert response.status_code == 401
 
     def test_update_policy_authorized(self, test_client, mock_firebase_token, admin_headers):
-        with patch('app.services.firestore_service.FirestoreService.update_policy', new_callable=AsyncMock) as mock_update:
+        with patch('app.services.firestore_service.FirestoreService.verify_policy_tenant', new_callable=AsyncMock) as mock_verify, \
+             patch('app.services.firestore_service.FirestoreService.update_policy', new_callable=AsyncMock) as mock_update:
+            mock_verify.return_value = True
             mock_update.return_value = None
 
             policy = {
@@ -148,7 +150,9 @@ class TestPolicyEndpoints:
         assert response.status_code == 401
 
     def test_delete_policy_authorized(self, test_client, mock_firebase_token, admin_headers):
-        with patch('app.services.firestore_service.FirestoreService.delete_policy', new_callable=AsyncMock) as mock_delete:
+        with patch('app.services.firestore_service.FirestoreService.verify_policy_tenant', new_callable=AsyncMock) as mock_verify, \
+             patch('app.services.firestore_service.FirestoreService.delete_policy', new_callable=AsyncMock) as mock_delete:
+            mock_verify.return_value = True
             mock_delete.return_value = None
 
             response = test_client.delete("/v1/policy/policy-123", headers=admin_headers)
