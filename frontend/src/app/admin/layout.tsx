@@ -1,25 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { auth, logout } from "@/lib/firebase-auth";
-import { onAuthStateChanged } from "firebase/auth";
+import { logout } from "@/lib/firebase-auth";
 import Link from "next/link";
 import { Shield, LayoutDashboard, FileText, Settings, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-interface User {
-  email: string | null;
-  uid: string;
-}
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -28,27 +22,13 @@ export default function AdminLayout({
     const isSignupPage = pathname === '/admin/signup';
 
     if (isLoginPage || isSignupPage) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setLoading(false);
-      setUser(null);
       return;
     }
 
-    const unsubscribe = onAuthStateChanged(auth!, (currentUser) => {
-      if (currentUser) {
-        setUser({
-          email: currentUser.email,
-          uid: currentUser.uid
-        });
-        setLoading(false);
-      } else {
-        router.push("/admin/login");
-        setLoading(false);
-      }
-    });
-
-    return () => unsubscribe();
-  }, [router, pathname]);
+    if (!loading && !user) {
+      router.push("/admin/login");
+    }
+  }, [user, loading, router, pathname]);
 
   const handleSignOut = () => {
     logout();
@@ -112,8 +92,9 @@ export default function AdminLayout({
         <div className="absolute bottom-0 w-64 p-6 border-t border-gray-200">
           <div className="flex items-center justify-between mb-2">
             <div className="text-sm">
-              <p className="font-medium text-gray-900">{user.email || 'Admin'}</p>
-              <p className="text-gray-500 text-xs">Admin</p>
+              <p className="font-medium text-gray-900">{user?.email || 'Admin'}</p>
+              <p className="text-gray-500 text-xs capitalize">{user?.role || 'user'}</p>
+              <p className="text-gray-400 text-xs">Tenant: {user?.tenantId || 'default'}</p>
             </div>
           </div>
           <Button

@@ -13,6 +13,7 @@ from app.models.requests import QueryRequest, PolicyRequest
 from app.models.responses import QueryResponse
 from pydantic import BaseModel
 from app.core.logging_config import logger, set_request_id
+from firebase_admin import auth as firebase_auth
 
 load_dotenv()
 
@@ -89,11 +90,19 @@ async def create_first_admin(request: AdminCreationRequest):
         raise HTTPException(status_code=500, detail="Failed to create admin user")
 
 
+class GrantAdminRequest(BaseModel):
+    tenantId: str = "tenant-a"
+
+
 @app.post("/v1/admin/grant-self-admin")
-async def grant_self_admin(user: dict = Depends(verify_firebase_token)):
+async def grant_self_admin(request: GrantAdminRequest, user: dict = Depends(verify_firebase_token)):
     try:
-        firebase_auth.set_custom_user_claims(user["uid"], {"role": "admin"})
-        return {"message": "Admin role granted. Please refresh your token.", "uid": user["uid"]}
+        firebase_auth.set_custom_user_claims(user["uid"], {"role": "admin", "tenantId": request.tenantId})
+        return {
+            "message": "Admin role and tenant assigned. Please refresh your token.",
+            "uid": user["uid"],
+            "tenantId": request.tenantId,
+        }
     except Exception:
         error_client.report_exception()
         raise HTTPException(status_code=500, detail="Failed to grant admin role")
@@ -186,24 +195,35 @@ async def process_query(request: QueryRequest):
 
 @app.get("/v1/policy")
 async def get_policies(user: dict = Depends(require_admin)):
-    policies = await db_service.get_all_policies()
+    tenant_id = user.get("tenantId", "default")
+    policies = await db_service.get_policies_by_tenant(tenant_id)
     return {"policies": policies}
 
 
 @app.post("/v1/policy")
 async def create_policy(policy: PolicyRequest, user: dict = Depends(require_admin)):
-    policy_id = await db_service.create_policy(policy.model_dump())
+    policy_data = policy.model_dump()
+    policy_data["tenantId"] = user.get("tenantId", "default")
+    policy_id = await db_service.create_policy(policy_data)
     return {"policyId": policy_id, "status": "created"}
 
 
 @app.put("/v1/policy/{policy_id}")
 async def update_policy(policy_id: str, policy: PolicyRequest, user: dict = Depends(require_admin)):
+    tenant_id = user.get("tenantId", "default")
+    if not await db_service.verify_policy_tenant(policy_id, tenant_id):
+        raise HTTPException(status_code=403, detail="Access denied to this policy")
+
     await db_service.update_policy(policy_id, policy.model_dump(), updated_by=user.get("email", "unknown"))
     return {"status": "updated"}
 
 
 @app.delete("/v1/policy/{policy_id}")
 async def delete_policy(policy_id: str, user: dict = Depends(require_admin)):
+    tenant_id = user.get("tenantId", "default")
+    if not await db_service.verify_policy_tenant(policy_id, tenant_id):
+        raise HTTPException(status_code=403, detail="Access denied to this policy")
+
     await db_service.delete_policy(policy_id)
     return {"status": "deleted"}
 
@@ -211,6 +231,10 @@ async def delete_policy(policy_id: str, user: dict = Depends(require_admin)):
 @app.get("/v1/policy/{policy_id}/history")
 async def get_policy_history(policy_id: str, user: dict = Depends(require_admin)):
     try:
+        tenant_id = user.get("tenantId", "default")
+        if not await db_service.verify_policy_tenant(policy_id, tenant_id):
+            raise HTTPException(status_code=403, detail="Access denied to this policy")
+
         history = await db_service.get_policy_history(policy_id)
         return {"history": history}
     except ValueError as e:
@@ -224,6 +248,10 @@ class RollbackRequest(BaseModel):
 @app.post("/v1/policy/{policy_id}/rollback")
 async def rollback_policy(policy_id: str, request: RollbackRequest, user: dict = Depends(require_admin)):
     try:
+        tenant_id = user.get("tenantId", "default")
+        if not await db_service.verify_policy_tenant(policy_id, tenant_id):
+            raise HTTPException(status_code=403, detail="Access denied to this policy")
+
         await db_service.rollback_policy(policy_id, request.version)
         return {"status": "rolled_back", "version": request.version}
     except ValueError as e:
@@ -232,7 +260,8 @@ async def rollback_policy(policy_id: str, request: RollbackRequest, user: dict =
 
 @app.get("/v1/logs")
 async def get_logs(limit: int = 50, offset: int = 0, filterType: str = "all", user: dict = Depends(require_admin)):
-    result = await db_service.get_logs(limit=limit, offset=offset, filter_type=filterType)
+    tenant_id = user.get("tenantId", "default")
+    result = await db_service.get_logs(limit=limit, offset=offset, filter_type=filterType, tenant_id=tenant_id)
     return result
 
 
@@ -243,7 +272,7 @@ async def cleanup_logs(retention_days: int = 90, user: dict = Depends(require_ad
 
 
 @app.get("/v1/tenants")
-async def get_tenants(user: dict = Depends(require_admin)):
+async def get_tenants():
     tenants = await db_service.get_all_tenants()
     return {"tenants": tenants}
 
