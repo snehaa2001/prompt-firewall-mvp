@@ -6,7 +6,7 @@ class TestAPI:
     def test_query_clean(self, test_client):
         response = test_client.post(
             "/v1/query",
-            json={"prompt": "What is the capital of France?", "model": "gpt-3.5-turbo"}
+            json={"prompt": "What is the capital of France?", "model": "gpt-3.5-turbo", "tenantId": "tenant-a"}
         )
 
         assert response.status_code == 200
@@ -16,7 +16,7 @@ class TestAPI:
     def test_query_with_pii(self, test_client):
         response = test_client.post(
             "/v1/query",
-            json={"prompt": "My email is test@example.com", "model": "gpt-3.5-turbo"}
+            json={"prompt": "My email is test@example.com", "model": "gpt-3.5-turbo", "tenantId": "tenant-a"}
         )
 
         assert response.status_code == 200

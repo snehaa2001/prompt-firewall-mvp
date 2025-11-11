@@ -115,7 +115,8 @@ async def process_query(request: QueryRequest):
     logger.info("firewall_analysis_started", prompt_length=len(request.prompt), model=request.model, user_id=request.userId)
 
     try:
-        policies = await db_service.get_active_policies()
+        tenant_id = request.tenantId or "default"
+        policies = await db_service.get_active_policies_by_tenant(tenant_id)
 
         prompt_decision = await firewall.analyze_request(prompt=request.prompt, policies=policies)
 
@@ -125,6 +126,8 @@ async def process_query(request: QueryRequest):
                 response="[BLOCKED]",
                 decision=prompt_decision.model_dump(),
                 latency=time.time() - start_time,
+                user_id=request.userId,
+                tenant_id=tenant_id,
             )
 
             return QueryResponse(
@@ -154,7 +157,7 @@ async def process_query(request: QueryRequest):
 
         risk_score = await anomaly_detector.calculate_risk_score(
             user_id=request.userId or "anonymous",
-            tenant_id=getattr(request, "tenantId", "default"),
+            tenant_id=tenant_id,
             current_decision=response_decision.model_dump(),
         )
 
@@ -170,7 +173,12 @@ async def process_query(request: QueryRequest):
         )
 
         await db_service.log_request(
-            prompt=request.prompt, response=final_response, decision=response_decision.model_dump(), latency=latency
+            prompt=request.prompt,
+            response=final_response,
+            decision=response_decision.model_dump(),
+            latency=latency,
+            user_id=request.userId,
+            tenant_id=tenant_id,
         )
 
         response_decision.metadata["risk_score"] = risk_score

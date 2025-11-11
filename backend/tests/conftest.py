@@ -32,6 +32,13 @@ def mock_firestore():
     with patch('app.services.firestore_service.firestore.Client') as mock:
         mock_client = MagicMock()
         mock_collection = MagicMock()
+
+        # Mock where() to return self for chaining
+        mock_where = MagicMock()
+        mock_where.where.return_value = mock_where
+        mock_where.stream.return_value = []
+        mock_collection.where.return_value = mock_where
+
         mock_collection.stream.return_value = []
         mock_collection.document.return_value.get.return_value.to_dict.return_value = {}
         # Setup add() to return (None, doc_ref) tuple
@@ -70,7 +77,7 @@ def mock_firebase_token(mocker):
     }
 
     mock_user = mocker.patch('app.services.firebase_auth_service.firebase_auth.get_user')
-    mock_user.return_value.custom_claims = {'role': 'admin'}
+    mock_user.return_value.custom_claims = {'role': 'admin', 'tenantId': 'tenant-a'}
 
     return mock
 
