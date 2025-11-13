@@ -3,7 +3,7 @@
 A production-ready AI security firewall that detects PII/PHI and prompt injection attacks.
 
 **🔴 Live Demo:**
-- Frontend: https://prompt-firewall-frontend-lblqmcysnq-uc.a.run.app
+- Frontend: https://prompt-firewall-frontend-lblqmcysnq-uc.a.run.app , https://prompt-firewall-frontend-390735445343.us-central1.run.app/admin/login
 - Backend API: https://prompt-firewall-lblqmcysnq-uc.a.run.app
 - API Docs: https://prompt-firewall-lblqmcysnq-uc.a.run.app/docs
 
